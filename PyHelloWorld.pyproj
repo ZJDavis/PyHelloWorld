@@ -25,6 +25,7 @@
     <Compile Include="programs\PyHelloWorld.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="programs\PySlidingPuzzle.py" />
     <Compile Include="programs\__init__.py">
       <SubType>Code</SubType>
     </Compile>
@@ -36,7 +37,12 @@
     <Compile Include="main.py" />
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="assets\" />
+    <Folder Include="assets\SlidingPuzzleImages\" />
     <Folder Include="programs\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="assets\SlidingPuzzleImages\ConnorsFriend.png" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
