@@ -21,22 +21,30 @@ This repository is designed to be **extensible**, **educational**, and **easy to
 ```
 project_root/
 │
-├── main.py                 # Application entry point
-├── PyProgramBase.py        # Base class for all programs
-├── README.md               # Project documentation
+├── main.py                     # Application entry point
+├── PyProgramBase.py            # Base class for all programs
+├── README.md                   # Project documentation
 │
-└── programs/               # Individual program implementations
+├── assets/                     # Shared assets folder
+│   └── SlidingPuzzleImages/    # images for each puzzle size coming soon
+│       ├── puzzle_4x8.png
+│       ├── puzzle_5x8.png
+│       ├── puzzle_8x6.png
+│       ├── puzzle_8x7.png
+│       └── puzzle_8x8.png
+└── programs/                   # Individual program implementations
     ├── __init__.py
     ├── PyHelloWorld.py
     ├── PyMathProgram.py
     ├── PyRecamansSequence.py
+    ├── PySlidingPuzzle.py
 ```
 
 ---
 
 ## ▶️ How to Run
 
-Make sure you have Python 3.9+ installed.
+Make sure you have Python 3.10+ installed.
 
 From the project root directory:
 
@@ -104,6 +112,14 @@ A persistent implementation of Recamán’s sequence that:
 * Monitors storage file size and prompts for reset if it exceeds 10 MB
 
 The sequence is stored locally in `recaman_sequence.json`.
+
+### Sliding Puzzle
+
+An exercise in creating a game fully in Python. 
+
+* The player selects a size based on the number of tiles and the program loads an image, slices it up, and scrambles it. 
+* A timer is used to measure player performance
+* An xml file stores the high scores for each puzzle size
 
 ---
 
