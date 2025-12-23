@@ -6,7 +6,7 @@ Sliding Puzzle Game
 
 - Auto-discovered by main menu
 - Uses tkinter for UI
-- Supports image-based or generated puzzles
+- Supports size-specific image puzzles
 - Adjustable grid size (3-8 per dimension)
 - Mouse + keyboard controls
 - Timer starts on first move
@@ -33,26 +33,119 @@ SUPPORTED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".bmp"}
 
 
 class SlidingPuzzleProgram(ProgramBase):
+    @staticmethod
+    def _prompt_grid_size() -> Tuple[int, int]:
+        """Prompt user for grid size"""
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes('-topmost', True)
+
+        dialog = PuzzleSetupDialog(root, title="Sliding Puzzle Setup")
+        root.destroy()
+
+        if dialog.result is None:
+            raise SystemExit("Puzzle setup cancelled by user.")
+
+        return dialog.result
+
+    @staticmethod
+    def _get_size_specific_image_path(rows: int, cols: int) -> Optional[Path]:
+        """
+        Get the image path for the specific grid size.
+        Looks for files named like: puzzle_3x3.png, puzzle_4x5.jpg, etc.
+        """
+        if not ASSETS_DIR.exists():
+            return None
+        
+        # First, try exact dimension match with various extensions
+        base_name = f"puzzle_{rows}x{cols}"
+        
+        for ext in SUPPORTED_EXTENSIONS:
+            # Try both lowercase and uppercase extensions
+            image_path = ASSETS_DIR / f"{base_name}{ext}"
+            if image_path.exists():
+                return image_path
+            
+            image_path = ASSETS_DIR / f"{base_name}{ext.upper()}"
+            if image_path.exists():
+                return image_path
+        
+        # If no exact match, try to find any image that starts with the dimension
+        # This allows for variations like puzzle_3x3_v1.png, puzzle_3x3_landscape.jpg
+        pattern = f"{base_name}*"
+        matching_files = []
+        
+        for ext in SUPPORTED_EXTENSIONS:
+            matching_files.extend(ASSETS_DIR.glob(f"{pattern}{ext}"))
+            matching_files.extend(ASSETS_DIR.glob(f"{pattern}{ext.upper()}"))
+        
+        if matching_files:
+            return matching_files[0]  # Return first match
+        
+        return None
+
     def run(self):
         rows, cols = self._prompt_grid_size()
-        # image = self._load_or_generate_image(rows, cols)
-
-        # Get a random image path first (no tkinter involved yet)
-        image_path = self._get_random_image_path()
+        
+        # Get the size-specific image
+        image_path = self._get_size_specific_image_path(rows, cols)
         if image_path is None:
-            messagebox.showerror(
-                "Error", 
-                f"No images found in {ASSETS_DIR}. Please add images and try again."
-            )
+            # Create a temporary root for the error dialog
+            root = tk.Tk()
+            root.withdraw()
+            
+            # Suggest available images if none found for this size
+            available_sizes = self._get_available_sizes()
+            if available_sizes:
+                sizes_text = "\n".join([f"  {size}" for size in available_sizes])
+                error_msg = (
+                    f"No image found for {rows}x{cols} puzzle.\n\n"
+                    f"Please add an image named 'puzzle_{rows}x{cols}.png' to:\n"
+                    f"{ASSETS_DIR}\n\n"
+                    f"Available puzzle sizes:\n{sizes_text}"
+                )
+            else:
+                error_msg = (
+                    f"No puzzle images found.\n\n"
+                    f"Please add images to:\n{ASSETS_DIR}\n"
+                    f"Named like: puzzle_3x3.png, puzzle_4x4.jpg, etc."
+                )
+            
+            messagebox.showerror("Image Not Found", error_msg)
+            root.destroy()
             return
             
-        # Start the game with the image path
+        # Start the game with the size-specific image
         game = SlidingPuzzleGame(rows, cols, image_path)
         game.start()
 
+    @staticmethod
+    def _get_available_sizes() -> list[str]:
+        """Get list of available puzzle sizes from image filenames"""
+        if not ASSETS_DIR.exists():
+            return []
+        
+        sizes = set()
+        for ext in SUPPORTED_EXTENSIONS:
+            # Look for files with pattern puzzle_ROWSxCOLS.ext
+            for file_path in ASSETS_DIR.glob(f"puzzle_*x*{ext}"):
+                for file_path_upper in ASSETS_DIR.glob(f"puzzle_*x*{ext.upper()}"):
+                    pass
+                
+                # Extract dimensions from filename
+                stem = file_path.stem  # Gets filename without extension
+                if stem.startswith("puzzle_"):
+                    dim_part = stem[7:]  # Remove "puzzle_" prefix
+                    if "x" in dim_part:
+                        # Take only the dimension part (ignore any additional suffixes)
+                        dim_part = dim_part.split("_")[0]  # Gets "3x3" from "3x3_v1"
+                        sizes.add(dim_part)
+        
+        return sorted(list(sizes), key=lambda x: tuple(map(int, x.split('x'))))
+
 
 class SlidingPuzzleGame:
-    TILE_SIZE = 100
+    TILE_SIZE = 100  # Each tile will be 100x100 pixels
 
     def __init__(self, rows: int, cols: int, image_path: Path):
         self.rows = rows
@@ -60,24 +153,33 @@ class SlidingPuzzleGame:
         self.image_path = image_path
 
         self.root = tk.Tk()
-        self.root.title("Sliding Puzzle")
+        self.root.title(f"Sliding Puzzle - {rows}x{cols}")
 
-        # Load the image only after root window is created
-        self.image = tk.PhotoImage(file=str(image_path))
-        
-        # Resize image if needed to match grid size
-        self._resize_image()
+        # Load the size-specific image
+        try:
+            self.image = tk.PhotoImage(file=str(image_path))
+            self._validate_image_size()
+        except Exception as e:
+            messagebox.showerror(
+                "Image Error",
+                f"Failed to load image: {e}\n\n"
+                f"Path: {image_path}\n"
+                f"Expected size: {cols * self.TILE_SIZE}x{rows * self.TILE_SIZE}"
+            )
+            self.root.destroy()
+            raise
         
         # Store tile images
         self.tile_images = self._create_tile_images()
 
-        # self.root = tk.Tk()
-        # self.root.title("Sliding Puzzle")
-
+        # Set window size based on image dimensions
+        window_width = self.image.width()
+        window_height = self.image.height()
+        
         self.canvas = tk.Canvas(
             self.root,
-            width=self.cols * self.TILE_SIZE,
-            height=self.rows * self.TILE_SIZE,
+            width=window_width,
+            height=window_height,
         )
         self.canvas.pack()
 
@@ -91,63 +193,78 @@ class SlidingPuzzleGame:
         self.canvas.bind("<Button-1>", self._on_click)
         self.root.bind("<Key>", self._on_key)
 
+    def _validate_image_size(self):
+        """Check that the image matches the expected puzzle size"""
+        actual_width = self.image.width()
+        actual_height = self.image.height()
+        
+        expected_width = self.cols * self.TILE_SIZE
+        expected_height = self.rows * self.TILE_SIZE
+        
+        if actual_width != expected_width or actual_height != expected_height:
+            # Warn but continue - the image might still work
+            print(f"Warning: Image size mismatch. "
+                  f"Expected: {expected_width}x{expected_height}, "
+                  f"Actual: {actual_width}x{actual_height}")
+            
+            new_tile_width = actual_width // self.cols
+            new_tile_height = actual_height // self.rows
+            
+            if new_tile_width == new_tile_height and new_tile_width > 0:
+                self.TILE_SIZE = new_tile_width
+                print(f"Adjusted tile size to: {self.TILE_SIZE}")
+            else:
+                # Images must be evenly divisible by grid dimensions
+                messagebox.showwarning(
+                    "Image Size Warning",
+                    f"Image dimensions ({actual_width}x{actual_height}) are not "
+                    f"evenly divisible by grid size ({self.cols}x{self.rows}).\n"
+                    f"Some tiles may not display correctly."
+                )
+
     def start(self):
         self.root.mainloop()
         
-    def _resize_image(self):
-        """Resize the image to fit the grid dimensions"""
-        target_width = self.cols * self.TILE_SIZE
-        target_height = self.rows * self.TILE_SIZE
-        
-        # Check if resizing is needed
-        if (self.image.width() != target_width or 
-            self.image.height() != target_height):
-            # Create a new resized image
-            resized_image = tk.PhotoImage(width=target_width, height=target_height)
-            resized_image = resized_image.zoom(target_width // self.image.width())
-            resized_image = resized_image.subsample(1)
-            # This is a simplified approach - for better quality resizing,
-            # you might want to use PIL/Pillow instead
-            self.image = resized_image.copy(self.image, from_=(0, 0, self.image.width(), self.image.height()))
+    def _create_tile_images(self):
+        """Create individual PhotoImage objects for each tile"""
+        tile_images = {}
+        for r in range(self.rows):
+            for c in range(self.cols):
+                # Calculate tile boundaries
+                x1 = c * self.TILE_SIZE
+                y1 = r * self.TILE_SIZE
+                x2 = (c + 1) * self.TILE_SIZE
+                y2 = (r + 1) * self.TILE_SIZE
+                
+                # Create a new PhotoImage with just the tile portion
+                tile_img = tk.PhotoImage()
+                tile_img.tk.call(
+                    tile_img, 'copy', self.image, 
+                    '-from', x1, y1, x2, y2,
+                    '-to', 0, 0
+                )
+                tile_images[(r, c)] = tile_img
+        return tile_images
 
     def _create_tiles(self):
         tiles = []
         for r in range(self.rows):
             for c in range(self.cols):
                 if r == self.rows - 1 and c == self.cols - 1:
-                    tiles.append(None)  # Empty space
+                    tiles.append(None)  # Empty space at bottom-right
                 else:
                     tiles.append((r, c))
         return tiles, (self.rows - 1, self.cols - 1)
 
     def _shuffle_tiles(self):
-        movable = [t for t in self.tiles if t is not None]
-        random.shuffle(movable)
-
-        i = 0
-        for idx in range(len(self.tiles)):
-            if self.tiles[idx] is not None:
-                self.tiles[idx] = movable[i]
-                i += 1
-
-    def _create_tile_images(self):
-        """Create individual PhotoImage objects for each tile"""
-        tile_images = {}
-        for r in range(self.rows):
-            for c in range(self.cols):
-                # Create a new PhotoImage with just the tile portion
-                tile_img = tk.PhotoImage()
-                tile_img.tk.call(
-                    tile_img, 'copy', self.image, 
-                    '-from', 
-                    c * self.TILE_SIZE, 
-                    r * self.TILE_SIZE,
-                    (c + 1) * self.TILE_SIZE, 
-                    (r + 1) * self.TILE_SIZE,
-                    '-to', 0, 0
-                )
-                tile_images[(r, c)] = tile_img
-        return tile_images
+        # Fisher-Yates shuffle for movable tiles
+        movable_indices = [i for i, t in enumerate(self.tiles) if t is not None]
+        
+        for i in range(len(movable_indices) - 1, 0, -1):
+            j = random.randint(0, i)
+            idx_i = movable_indices[i]
+            idx_j = movable_indices[j]
+            self.tiles[idx_i], self.tiles[idx_j] = self.tiles[idx_j], self.tiles[idx_i]
 
     def _draw(self):
         self.canvas.delete("all")
@@ -242,10 +359,10 @@ class SlidingPuzzleGame:
         elapsed = time.time() - self.start_time
         initials = simpledialog.askstring(
             "Solved!", 
-            f"Time: {elapsed:.2f}s\nEnter initials:"
+            f"Time: {elapsed:.2f}s\nEnter initials (3 chars max):"
         )
         if initials:
-            Leaderboard.record(self.rows, self.cols, elapsed, initials)
+            Leaderboard.record(self.rows, self.cols, elapsed, initials[:3])
         messagebox.showinfo("Completed", f"Puzzle solved in {elapsed:.2f} seconds!")
         self.root.destroy()
 
@@ -262,40 +379,13 @@ class Leaderboard:
                 data = {}
 
         scores = data.get(key, [])
-        scores.append({"initials": initials[:3], "time": time_sec})
+        scores.append({"initials": initials, "time": round(time_sec, 2)})
         scores = sorted(scores, key=lambda x: x["time"])[:10]
         data[key] = scores
 
+        LEADERBOARD_FILE.parent.mkdir(parents=True, exist_ok=True)
         LEADERBOARD_FILE.write_text(json.dumps(data, indent=2))
 
-
-# class SlidingPuzzleProgramUtils:
-    # pass
-
-
-# def _slice_image(img: tk.PhotoImage, rows: int, cols: int) -> tk.PhotoImage:
-    # return img
-
-
-# def _generate_image(rows: int, cols: int) -> tk.PhotoImage:
-    # size = 100 * cols, 100 * rows
-    # root = tk.Tk()
-    # root.withdraw()  # hide temporary root window
-    # img = tk.PhotoImage(width=size[0], height=size[1])
-    # for r in range(rows):
-        # for c in range(cols):
-            # color = f"#{random.randint(0, 0xFFFFFF):06x}"
-            # img.put(color, to=(c * 100, r * 100, (c + 1) * 100, (r + 1) * 100))
-    # return img
-
-
-# def _load_random_image() -> tk.PhotoImage | None:
-    # if not ASSETS_DIR.exists():
-        # return None
-    # images = [p for p in ASSETS_DIR.iterdir() if p.suffix.lower() in SUPPORTED_EXTENSIONS]
-    # if not images:
-        # return None
-    # return tk.PhotoImage(file=str(random.choice(images)))
 
 class PuzzleSetupDialog(simpledialog.Dialog):
     def body(self, master):
@@ -324,43 +414,3 @@ class PuzzleSetupDialog(simpledialog.Dialog):
 
     def apply(self):
         self.result = (self.rows_var.get(), self.cols_var.get())
-
-def _prompt_grid_size():
-    """Prompt user for grid size without creating unnecessary root windows"""
-    root = tk.Tk()
-    root.withdraw()  # hide temporary root window
-    root.attributes('-topmost', True)  # Bring dialog to front
-
-    dialog = PuzzleSetupDialog(root, title="Sliding Puzzle Setup")
-    root.destroy()
-
-    if dialog.result is None:
-        raise SystemExit("Puzzle setup cancelled by user.")
-
-    return dialog.result
-
-def _get_random_image_path() -> Optional[Path]:
-    """Get a random image path from assets directory"""
-    if not ASSETS_DIR.exists():
-        return None
-    
-    # Find all valid image files
-    images = []
-    for ext in SUPPORTED_EXTENSIONS:
-        images.extend(ASSETS_DIR.glob(f"*{ext}"))
-        images.extend(ASSETS_DIR.glob(f"*{ext.upper()}"))
-    
-    if not images:
-        return None
-    
-    return random.choice(images)
-
-# def _load_or_generate_image(rows: int, cols: int) -> tk.PhotoImage:
-    # img = _load_random_image()
-    # if img is None:
-        # return _generate_image(rows, cols)
-    # return img
-
-# Attach static methods to the main class
-SlidingPuzzleProgram._prompt_grid_size = staticmethod(_prompt_grid_size)
-SlidingPuzzleProgram._load_or_generate_image = staticmethod(_get_random_image_path)
