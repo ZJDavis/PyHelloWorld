@@ -54,8 +54,22 @@
     </Interpreter>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="assets\SlidingPuzzleImages\puzzle_3x3.png" />
+    <Content Include="assets\SlidingPuzzleImages\puzzle_3x4.png" />
+    <Content Include="assets\SlidingPuzzleImages\puzzle_3x5.png" />
+    <Content Include="assets\SlidingPuzzleImages\puzzle_3x6.png" />
+    <Content Include="assets\SlidingPuzzleImages\puzzle_3x7.png" />
+    <Content Include="assets\SlidingPuzzleImages\puzzle_3x8.png" />
+    <Content Include="assets\SlidingPuzzleImages\puzzle_4x4b.png" />
     <Content Include="assets\SlidingPuzzleImages\puzzle_4x8.png" />
+    <Content Include="assets\SlidingPuzzleImages\puzzle_5x5b.png" />
     <Content Include="assets\SlidingPuzzleImages\puzzle_5x8.png" />
+    <Content Include="assets\SlidingPuzzleImages\puzzle_6x6b.png" />
+    <Content Include="assets\SlidingPuzzleImages\puzzle_7x3.png" />
+    <Content Include="assets\SlidingPuzzleImages\puzzle_7x7b.png" />
+    <Content Include="assets\SlidingPuzzleImages\puzzle_8x3.png" />
+    <Content Include="assets\SlidingPuzzleImages\puzzle_8x4.png" />
+    <Content Include="assets\SlidingPuzzleImages\puzzle_8x5.png" />
     <Content Include="assets\SlidingPuzzleImages\puzzle_8x6.png" />
     <Content Include="assets\SlidingPuzzleImages\puzzle_8x7.png" />
     <Content Include="assets\SlidingPuzzleImages\puzzle_8x8.png" />

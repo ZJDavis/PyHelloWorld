@@ -257,14 +257,58 @@ class SlidingPuzzleGame:
         return tiles, (self.rows - 1, self.cols - 1)
 
     def _shuffle_tiles(self):
-        # Fisher-Yates shuffle for movable tiles
-        movable_indices = [i for i, t in enumerate(self.tiles) if t is not None]
+        # # Fisher-Yates shuffle for movable tiles (removed)
+        # movable_indices = [i for i, t in enumerate(self.tiles) if t is not None]
         
-        for i in range(len(movable_indices) - 1, 0, -1):
-            j = random.randint(0, i)
-            idx_i = movable_indices[i]
-            idx_j = movable_indices[j]
-            self.tiles[idx_i], self.tiles[idx_j] = self.tiles[idx_j], self.tiles[idx_i]
+        # for i in range(len(movable_indices) - 1, 0, -1):
+            # j = random.randint(0, i)
+            # idx_i = movable_indices[i]
+            # idx_j = movable_indices[j]
+            # self.tiles[idx_i], self.tiles[idx_j] = self.tiles[idx_j], self.tiles[idx_i]
+
+        # First, generate the puzzle in a solved state
+        solved_tiles = []
+        for r in range(self.rows):
+            for c in range(self.cols):
+                if r == self.rows - 1 and c == self.cols - 1:
+                    solved_tiles.append(None)
+                else:
+                    solved_tiles.append((r, c))
+        # Perform a large number of random moves from the solved state
+        # This ensures the puzzle can be solvable
+        empty_pos = (self.rows - 1, self.cols - 1)
+        num_moves = self.rows * self.cols * (self.rows + self.cols)^2
+
+        for _ in range(num_moves):
+            # Find all possible moves from the current empty space
+            er, ec = empty_pos
+            possible_moves = []
+
+            if er > 0: # there is a tile below the empty tile
+                possible_moves.append((er - 1, ec))
+            if er < self.rows - 1: # there is a tile above the empty tile
+                possible_moves.append((er + 1, ec))
+            if ec > 0: # there is a tile right of the empty tile
+                possible_moves.append((er, ec - 1))
+            if ec < self.cols - 1: # there is a tile left of the empty tile
+                possible_moves.append((er, ec + 1))
+
+            # choose a random move
+            if possible_moves:
+                move_r, move_c = random.choice(possible_moves)
+
+                # make a move
+                move_idx = move_r * self.cols + move_c
+                empty_idx = er * self.cols + ec
+                self.tiles[empty_idx], self.tiles[move_idx] = (
+                    self.tiles[move_idx],
+                    None,
+                )
+                # Update empty position
+                empty_pos = (move_r, move_c)
+        
+        # Update self.empty_pos to match the final empty position
+        self.empty_pos = empty_pos
 
     def _draw(self):
         self.canvas.delete("all")
